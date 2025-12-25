@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Configuração OAuth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f0f1e;
+            color: #fff;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+        }
+        .warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: #f59e0b;
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #9333ea, #db2777);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        pre {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        h1 {
+            background: linear-gradient(135deg, #9333ea, #db2777);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste de Configuração OAuth - OnonaMais</h1>
+    
+    <div id="status"></div>
+    
+    <button onclick="testConfig()">Testar Configuração</button>
+    <button onclick="testLogin()">Testar Login</button>
+    <button onclick="clearStorage()">Limpar Storage</button>
+    
+    <h3>Logs:</h3>
+    <pre id="logs"></pre>
+
+    <script>
+        const CLIENT_ID = '603741744377-8s0dvb81r0arejnp141oo2av9tf5ti8r.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyAK2P8JFetRAY5mWLLA7Hf8mRh9XAppks0';
+        const BLOG_ID = '5393327655346472850';
+        const SCOPES = 'https://www.googleapis.com/auth/blogger https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+
+        let tokenClient;
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logs.push(logMessage);
+            document.getElementById('logs').textContent = logs.join('\n');
+            console.log(logMessage);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function testConfig() {
+            log('=== INICIANDO TESTE DE CONFIGURAÇÃO ===');
+            
+            // Verificar variáveis
+            log(`Client ID: ${CLIENT_ID}`);
+            log(`API Key: ${API_KEY}`);
+            log(`Blog ID: ${BLOG_ID}`);
+            log(`Scopes: ${SCOPES}`);
+            
+            // Verificar se Google API está carregado
+            if (typeof google !== 'undefined') {
+                log('✅ Google API carregado', 'success');
+                showStatus('✅ Google API carregado com sucesso!', 'success');
+                
+                if (google.accounts) {
+                    log('✅ google.accounts disponível', 'success');
+                } else {
+                    log('❌ google.accounts não disponível', 'error');
+                    showStatus('❌ google.accounts não está disponível', 'error');
+                }
+                
+                if (google.accounts && google.accounts.oauth2) {
+                    log('✅ google.accounts.oauth2 disponível', 'success');
+                } else {
+                    log('❌ google.accounts.oauth2 não disponível', 'error');
+                }
+            } else {
+                log('❌ Google API não carregado', 'error');
+                showStatus('❌ Google API não foi carregado. Verifique sua conexão.', 'error');
+            }
+            
+            // Verificar localStorage
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                log(`✅ Token encontrado no localStorage: ${token.substring(0, 20)}...`, 'success');
+            } else {
+                log('⚠️ Nenhum token no localStorage', 'warning');
+            }
+        }
+
+        function testLogin() {
+            log('=== INICIANDO TESTE DE LOGIN ===');
+            
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                showStatus('❌ Google API não está disponível. Aguarde o carregamento.', 'error');
+                log('❌ Google API não disponível');
+                return;
+            }
+            
+            try {
+                log('Criando token client...');
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: (response) => {
+                        log('📥 Callback recebido');
+                        log(`Response: ${JSON.stringify(response, null, 2)}`);
+                        
+                        if (response.error) {
+                            log(`❌ Erro: ${response.error}`, 'error');
+                            showStatus(`❌ Erro: ${response.error}`, 'error');
+                            return;
+                        }
+                        
+                        if (response.access_token) {
+                            log('✅ Token recebido!', 'success');
+                            localStorage.setItem('access_token', response.access_token);
+                            showStatus('✅ Login bem-sucedido! Token salvo.', 'success');
+                            
+                            // Testar API
+                            testBloggerAPI(response.access_token);
+                        }
+                    },
+                    error_callback: (error) => {
+                        log(`❌ Error callback: ${JSON.stringify(error)}`, 'error');
+                        showStatus(`❌ Erro no login: ${JSON.stringify(error)}`, 'error');
+                    }
+                });
+                
+                log('Token client criado, solicitando acesso...');
+                showStatus('⏳ Abrindo popup de login...', 'warning');
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+                
+            } catch (error) {
+                log(`❌ Erro no teste de login: ${error.message}`, 'error');
+                showStatus(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBloggerAPI(token) {
+            log('=== TESTANDO BLOGGER API ===');
+            
+            try {
+                const url = `https://www.googleapis.com/blogger/v3/blogs/${BLOG_ID}?key=${API_KEY}`;
+                log(`Fazendo requisição para: ${url}`);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                log(`Status da resposta: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ API funcionando! Blog: ${data.name}`, 'success');
+                    showStatus(`✅ Tudo funcionando! Blog: ${data.name}`, 'success');
+                } else {
+                    const error = await response.text();
+                    log(`❌ Erro na API: ${error}`, 'error');
+                    showStatus(`❌ Erro ao acessar API: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+                showStatus(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            log('🗑️ LocalStorage limpo');
+            showStatus('🗑️ Storage limpo com sucesso', 'success');
+        }
+
+        // Carregar Google API
+        window.onload = () => {
+            log('=== PÁGINA CARREGADA ===');
+            log('Aguardando Google API...');
+            
+            // Verificar se já está carregado
+            const checkInterval = setInterval(() => {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    clearInterval(checkInterval);
+                    log('✅ Google API pronto!', 'success');
+                    showStatus('✅ Google API carregado. Clique em "Testar Configuração"', 'success');
+                }
+            }, 100);
+            
+            // Timeout após 10 segundos
+            setTimeout(() => {
+                if (typeof google === 'undefined') {
+                    clearInterval(checkInterval);
+                    log('❌ Timeout: Google API não carregou em 10s', 'error');
+                    showStatus('❌ Google API não carregou. Verifique sua conexão.', 'error');
+                }
+            }, 10000);
+        };
+    </script>
+    
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
