@@ -36,8 +36,8 @@ Sistema de gerenciamento de blog Blogger com integração Google Drive e recurso
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/onona-blogger-manager.git
-cd onona-blogger-manager
+git clone https://github.com/domingosjm/ononaAPI.git
+cd ononaAPI
 ```
 
 ### 2. Instale as dependências
